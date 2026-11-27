@@ -1,0 +1,29 @@
+name: Bug Report
+description: Report a bug in Keeftalk Desktop
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - Windows 10/11
+        - Linux (Wayland)
+        - Linux (X11)
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
