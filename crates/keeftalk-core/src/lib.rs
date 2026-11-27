@@ -81,6 +81,18 @@ impl KeeftalkCore {
         })
     }
 
+    /// Convenience constructor for local mock/demo mode without requiring OS directories.
+    pub fn bootstrap_mock(mut config: AppConfig) -> Result<Self, CoreError> {
+        config.app.mode = AppMode::Mock;
+        let mock_root = std::env::temp_dir().join("keeftalk-mock");
+        let paths = AppPaths {
+            data_dir: mock_root.join("data"),
+            config_dir: mock_root.join("config"),
+            cache_dir: mock_root.join("cache"),
+        };
+        Self::bootstrap(config, paths)
+    }
+
     pub fn config(&self) -> Result<AppConfig, CoreError> {
         self.config
             .read()

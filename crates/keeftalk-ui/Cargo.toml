@@ -7,8 +7,10 @@ description = "Keeftalk Desktop native UI shell and theme system (depends only o
 
 [dependencies]
 chrono.workspace = true
+iced.workspace = true
 keeftalk-core.workspace = true
 keeftalk-settings.workspace = true
+keeftalk-sync.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 
