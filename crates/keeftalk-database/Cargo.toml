@@ -6,11 +6,15 @@ license.workspace = true
 description = "Encrypted SQLite/SQLCipher persistence layer, migrations, and local backups"
 
 [dependencies]
+chrono.workspace = true
 keeftalk-crypto.workspace = true
+keeftalk-platform.workspace = true
+rusqlite.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+zeroize.workspace = true
 
 [lints]
 workspace = true
