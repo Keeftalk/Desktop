@@ -1,0 +1,30 @@
+# Keeftalk Desktop Default Configuration
+# Overridden by user config file and KEEFTALK_* environment variables.
+
+[app]
+mode = "offline" # "mock" | "offline" | "cloud"
+language = "en"
+check_updates = false
+
+[backend]
+# Self-hosted or official Keeftalk Supabase endpoints must be configured
+# explicitly via config or environment variables; never hardcode secrets.
+supabase_url = ""
+supabase_anon_key = ""
+request_timeout_secs = 30
+
+[ui]
+theme = "dark" # "light" | "dark" | "day" | "pinky" | "masculine"
+accent_color = "#6C63FF"
+sidebar_collapsed = false
+use_keef_atmosphere = true
+font_scale = 1.0
+
+[security]
+auto_lock_seconds = 300
+clipboard_clear_seconds = 30
+require_os_keyring = true
+
+[logging]
+level = "info"
+log_to_file = false

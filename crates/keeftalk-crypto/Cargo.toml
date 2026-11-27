@@ -1,0 +1,21 @@
+[package]
+name = "keeftalk-crypto"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Zero-knowledge cryptographic primitives and Keeftalk Android-compatible wire formats"
+
+[dependencies]
+aes-gcm.workspace = true
+argon2.workspace = true
+base64.workspace = true
+hmac.workspace = true
+rand.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+zeroize.workspace = true
+
+[lints]
+workspace = true

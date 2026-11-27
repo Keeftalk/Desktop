@@ -1,0 +1,20 @@
+==============================================================================
+KEEFTALK DESKTOP OPEN SOURCE LICENSING FRAMEWORK
+==============================================================================
+
+Keeftalk is free to use, free to modify, free to fork, free to self-host,
+and free from advertisements and behavioral tracking. Users never pay
+subscriptions to unlock application functionality.
+
+Components in this repository are licensed under the following terms:
+
+1. KEEFTALK DESKTOP APPLICATION (`crates/`, `assets/`, `scripts/`, `config/`)
+   Licensed under the GNU General Public License v3.0 or later
+   (SPDX-License-Identifier: GPL-3.0-or-later).
+   Copyright (C) 2026 Keeftalk Ecosystem Contributors.
+   Official text: https://www.gnu.org/licenses/gpl-3.0.txt
+
+2. KEEFTALK DOCUMENTATION & ARCHITECTURE SPECIFICATIONS (`docs/`, `*.md`)
+   Licensed under Creative Commons Attribution-ShareAlike 4.0 International
+   (SPDX-License-Identifier: CC-BY-SA-4.0).
+   Official text: https://creativecommons.org/licenses/by-sa/4.0/legalcode.txt

@@ -1,0 +1,24 @@
+# Example local development configuration (copy to config/development.toml or user config dir)
+
+[app]
+mode = "mock"
+language = "en"
+
+[backend]
+supabase_url = "https://your-self-hosted-instance.supabase.co"
+supabase_anon_key = "replace-with-public-anon-key"
+request_timeout_secs = 30
+
+[ui]
+theme = "dark"
+accent_color = "#7D5CFF"
+use_keef_atmosphere = true
+
+[security]
+auto_lock_seconds = 900
+clipboard_clear_seconds = 30
+require_os_keyring = false # Set true in production; false allows ephemeral in-memory keys in mock dev
+
+[logging]
+level = "debug"
+log_to_file = false

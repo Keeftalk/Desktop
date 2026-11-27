@@ -1,0 +1,16 @@
+[package]
+name = "keeftalk-ui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Keeftalk Desktop native UI shell and theme system (depends only on core & settings)"
+
+[dependencies]
+chrono.workspace = true
+keeftalk-core.workspace = true
+keeftalk-settings.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true
