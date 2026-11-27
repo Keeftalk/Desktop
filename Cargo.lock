@@ -2451,11 +2451,13 @@ dependencies = [
 name = "keeftalk-sync"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "chrono",
  "keeftalk-api",
+ "keeftalk-crypto",
  "keeftalk-database",
- "keeftalk-storage",
  "serde",
+ "serde_json",
  "thiserror 2.0.21",
  "tokio",
  "tracing",

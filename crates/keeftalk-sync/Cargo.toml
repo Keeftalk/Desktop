@@ -6,15 +6,19 @@ license.workspace = true
 description = "Offline-first durable outbox queues, retry policies, and conflict resolution"
 
 [dependencies]
+async-trait.workspace = true
 chrono.workspace = true
 keeftalk-api.workspace = true
 keeftalk-database.workspace = true
-keeftalk-storage.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 uuid.workspace = true
+
+[dev-dependencies]
+keeftalk-crypto.workspace = true
 
 [lints]
 workspace = true
