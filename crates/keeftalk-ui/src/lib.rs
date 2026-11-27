@@ -41,8 +41,10 @@ pub enum Message {
     SelectChat(usize),
     SelectNote(usize),
     ToggleTodoCompleted(usize, bool),
+    NewTodoTitleChanged(String),
+    CreateTodo,
     ComposerChanged(String),
-    SendMockMessage,
+    SendMessage,
     ToggleSidebar,
     ToggleContextPanel,
     SelectTheme(ThemeVariant),
@@ -55,12 +57,13 @@ pub enum Message {
 }
 
 pub struct KeeftalkApp {
-    _core: Arc<KeeftalkCore>,
+    core: Arc<KeeftalkCore>,
     snapshot: WorkspaceSnapshot,
     active_module: ModuleId,
     selected_chat_idx: usize,
     selected_note_idx: usize,
     composer_text: String,
+    new_todo_title: String,
     sidebar_collapsed: bool,
     context_panel_open: bool,
     theme_variant: ThemeVariant,
@@ -83,12 +86,13 @@ impl KeeftalkApp {
             .unwrap_or_default();
 
         Ok(Self {
-            _core: core,
+            core,
             snapshot,
             active_module: ModuleId::Home,
             selected_chat_idx: 0,
             selected_note_idx: 0,
             composer_text: String::new(),
+            new_todo_title: String::new(),
             sidebar_collapsed: cfg.ui.sidebar_collapsed,
             context_panel_open: true,
             theme_variant: cfg.ui.theme,
@@ -149,30 +153,35 @@ impl KeeftalkApp {
                 }
             }
             Message::ToggleTodoCompleted(idx, completed) => {
-                if let Some(task) = self.snapshot.todos.get_mut(idx) {
-                    task.completed = completed;
+                if let Some(task) = self.snapshot.todos.get(idx)
+                    && let Ok(next) = self.core.toggle_todo(&task.id, completed)
+                {
+                    self.snapshot = next;
+                }
+            }
+            Message::NewTodoTitleChanged(val) => {
+                self.new_todo_title = val;
+            }
+            Message::CreateTodo => {
+                let title = self.new_todo_title.trim().to_string();
+                if !title.is_empty()
+                    && let Ok((_, next)) =
+                        self.core.create_todo(&title, "General", TodoPriority::Medium, None)
+                {
+                    self.snapshot = next;
+                    self.new_todo_title.clear();
                 }
             }
             Message::ComposerChanged(val) => {
                 self.composer_text = val;
             }
-            Message::SendMockMessage => {
+            Message::SendMessage => {
                 let text_trimmed = self.composer_text.trim().to_string();
                 if !text_trimmed.is_empty()
-                    && let Some(conv) = self.snapshot.conversations.get_mut(self.selected_chat_idx)
+                    && let Some(conv) = self.snapshot.conversations.get(self.selected_chat_idx)
+                    && let Ok(next) = self.core.send_chat_message(&conv.id, &text_trimmed)
                 {
-                    conv.last_message_preview = text_trimmed.clone();
-                    conv.last_activity = chrono::Utc::now();
-                    conv.messages.push(keeftalk_core::model::ChatMessage {
-                        id: format!("local-{}", conv.messages.len() + 1),
-                        chat_id: conv.id.clone(),
-                        sender_name: "You".into(),
-                        is_outgoing: true,
-                        body: text_trimmed,
-                        timestamp: chrono::Utc::now(),
-                        encrypted: true,
-                        sync_status: keeftalk_sync::SyncStatus::PendingUpload,
-                    });
+                    self.snapshot = next;
                     self.composer_text.clear();
                 }
             }
@@ -549,12 +558,12 @@ impl KeeftalkApp {
             let composer = row![
                 text_input("Write an encrypted message...", &self.composer_text)
                     .on_input(Message::ComposerChanged)
-                    .on_submit(Message::SendMockMessage)
+                    .on_submit(Message::SendMessage)
                     .padding(10)
                     .width(Length::Fill),
                 button(text("Send").size(13))
                     .padding([10, 16])
-                    .on_press(Message::SendMockMessage),
+                    .on_press(Message::SendMessage),
             ]
             .spacing(8);
 
@@ -637,7 +646,19 @@ impl KeeftalkApp {
     }
 
     fn view_todo(&self, p: KeeftalkPalette) -> Element<'_, Message> {
-        let mut list = column![text("My Todo").size(20)].spacing(10);
+        let add_bar = row![
+            text_input("Add a new task...", &self.new_todo_title)
+                .on_input(Message::NewTodoTitleChanged)
+                .on_submit(Message::CreateTodo)
+                .padding(10)
+                .width(Length::Fill),
+            button(text("Add Task").size(13))
+                .padding([10, 16])
+                .on_press(Message::CreateTodo),
+        ]
+        .spacing(8);
+
+        let mut list = column![text("My Todo").size(20), add_bar].spacing(10);
         for (idx, task) in self.snapshot.todos.iter().enumerate() {
             let priority_label = match task.priority {
                 TodoPriority::Low => "Low",
