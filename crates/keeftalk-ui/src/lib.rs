@@ -15,6 +15,7 @@ use iced::widget::{
     svg, text, text_input, vertical_rule,
 };
 use iced::{Alignment, Color, Element, Length, Subscription, Task};
+use keeftalk_auth::AuthState;
 use keeftalk_core::KeeftalkCore;
 use keeftalk_core::model::{ModuleGroup, ModuleId, TodoPriority, WorkspaceSnapshot};
 use keeftalk_settings::{AppMode, ThemeVariant};
@@ -54,6 +55,14 @@ pub enum Message {
     ExecutePaletteAction(PaletteAction),
     CommandPaletteSubmit,
     FontScaleChanged(f32),
+    SignInEmailChanged(String),
+    SignInPasswordChanged(String),
+    MasterPasswordChanged(String),
+    SubmitSignIn,
+    SubmitUnlockMasterPassword,
+    SignOutRequested,
+    AuthResult(Result<WorkspaceSnapshot, String>),
+    SwitchToMockMode,
 }
 
 pub struct KeeftalkApp {
@@ -218,6 +227,65 @@ impl KeeftalkApp {
             Message::FontScaleChanged(scale) => {
                 self.font_scale = scale.clamp(0.85, 1.4);
             }
+            Message::SignInEmailChanged(val) => {
+                self.snapshot.auth_form.sign_in_email = val;
+            }
+            Message::SignInPasswordChanged(val) => {
+                self.snapshot.auth_form.sign_in_password = val;
+            }
+            Message::MasterPasswordChanged(val) => {
+                self.snapshot.auth_form.master_password = val;
+            }
+            Message::SubmitSignIn => {
+                self.snapshot.auth_form.is_submitting = true;
+                self.snapshot.auth_form.error_message = None;
+                let core = Arc::clone(&self.core);
+                let email = self.snapshot.auth_form.sign_in_email.clone();
+                let password = self.snapshot.auth_form.sign_in_password.clone();
+                return Task::perform(
+                    async move { core.sign_in(&email, &password).await.map_err(|e| e.to_string()) },
+                    Message::AuthResult,
+                );
+            }
+            Message::SubmitUnlockMasterPassword => {
+                self.snapshot.auth_form.is_submitting = true;
+                self.snapshot.auth_form.error_message = None;
+                let core = Arc::clone(&self.core);
+                let password = self.snapshot.auth_form.master_password.clone();
+                return Task::perform(
+                    async move { core.unlock_master_password(&password).await.map_err(|e| e.to_string()) },
+                    Message::AuthResult,
+                );
+            }
+            Message::SignOutRequested => {
+                let core = Arc::clone(&self.core);
+                return Task::perform(
+                    async move { core.sign_out().await.map_err(|e| e.to_string()) },
+                    Message::AuthResult,
+                );
+            }
+            Message::SwitchToMockMode => {
+                self.snapshot.auth_form.is_submitting = true;
+                let core = Arc::clone(&self.core);
+                return Task::perform(
+                    async move { core.sign_in("demo@keeftalk.com", "demo").await.map_err(|e| e.to_string()) },
+                    Message::AuthResult,
+                );
+            }
+            Message::AuthResult(res) => {
+                self.snapshot.auth_form.is_submitting = false;
+                match res {
+                    Ok(new_snap) => {
+                        self.snapshot = new_snap;
+                        if let Some(note) = self.snapshot.notes.first() {
+                            self.note_markdown_items = markdown::parse(&note.markdown).collect();
+                        }
+                    }
+                    Err(err) => {
+                        self.snapshot.auth_form.error_message = Some(err);
+                    }
+                }
+            }
         }
         Task::none()
     }
@@ -237,6 +305,243 @@ impl KeeftalkApp {
 
     pub fn view(&self) -> Element<'_, Message> {
         let p = self.palette();
+        match &self.snapshot.auth {
+            AuthState::SignedOut => self.view_sign_in_screen(p),
+            AuthState::RecoveryRequired { user_id } => self.view_unlock_screen(user_id, p),
+            _ => self.view_workspace(p),
+        }
+    }
+
+    fn view_sign_in_screen(&self, p: KeeftalkPalette) -> Element<'_, Message> {
+        let logo = svg(svg::Handle::from_memory(KEEFTALK_LOGO_SVG))
+            .width(52)
+            .height(52);
+
+        let title = text("Sign In to Keeftalk Cloud").size(24);
+        let subtitle = text("Zero-Knowledge End-to-End Encrypted Super App")
+            .size(13)
+            .color(p.text_muted);
+
+        let email_input = column![
+            text("Email Address").size(12).color(p.text_muted),
+            text_input("user@example.com", &self.snapshot.auth_form.sign_in_email)
+                .on_input(Message::SignInEmailChanged)
+                .padding(10),
+        ]
+        .spacing(4);
+
+        let password_input = column![
+            text("Password").size(12).color(p.text_muted),
+            text_input("••••••••••••", &self.snapshot.auth_form.sign_in_password)
+                .on_input(Message::SignInPasswordChanged)
+                .secure(true)
+                .on_submit(Message::SubmitSignIn)
+                .padding(10),
+        ]
+        .spacing(4);
+
+        let submit_btn = button(
+            text(if self.snapshot.auth_form.is_submitting {
+                "Signing In..."
+            } else {
+                "Sign In"
+            })
+            .size(14)
+            .color(Color::WHITE),
+        )
+        .padding([12, 24])
+        .width(Length::Fill)
+        .style(move |_theme, _status| button::Style {
+            background: Some(p.primary.into()),
+            border: iced::Border {
+                radius: 8.0.into(),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .on_press(Message::SubmitSignIn);
+
+        let mock_btn = button(
+            text("Enter Demo / Mock Mode")
+                .size(13)
+                .color(p.text_primary),
+        )
+        .padding([10, 16])
+        .width(Length::Fill)
+        .style(move |_theme, _status| button::Style {
+            background: Some(p.surface_alt.into()),
+            border: iced::Border {
+                color: p.border,
+                width: 1.0,
+                radius: 8.0.into(),
+            },
+            ..Default::default()
+        })
+        .on_press(Message::SwitchToMockMode);
+
+        let mut card_content = column![
+            logo,
+            Space::with_height(6),
+            title,
+            subtitle,
+            Space::with_height(14),
+            email_input,
+            password_input,
+            Space::with_height(10),
+            submit_btn,
+            Space::with_height(6),
+            mock_btn,
+        ]
+        .spacing(10)
+        .align_x(Alignment::Center);
+
+        if let Some(err) = &self.snapshot.auth_form.error_message {
+            card_content = card_content.push(
+                container(text(err).size(12).color(Color::WHITE))
+                    .padding(10)
+                    .width(Length::Fill)
+                    .style(move |_| container::Style {
+                        background: Some(p.danger.into()),
+                        border: iced::Border {
+                            radius: 6.0.into(),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    }),
+            );
+        }
+
+        let card = container(card_content)
+            .width(420)
+            .padding(28)
+            .style(move |_| container::Style {
+                background: Some(p.surface.into()),
+                border: iced::Border {
+                    color: p.border,
+                    width: 1.0,
+                    radius: 14.0.into(),
+                },
+                ..Default::default()
+            });
+
+        container(card)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .align_x(Horizontal::Center)
+            .align_y(Vertical::Center)
+            .style(move |_| container::Style {
+                background: Some(p.background.into()),
+                ..Default::default()
+            })
+            .into()
+    }
+
+    fn view_unlock_screen(&self, user_id: &str, p: KeeftalkPalette) -> Element<'_, Message> {
+        let logo = svg(svg::Handle::from_memory(KEEFTALK_LOGO_SVG))
+            .width(52)
+            .height(52);
+
+        let title = text("Unlock Keeftalk Workspace").size(24);
+        let subtitle = text(format!("User ID: {user_id}"))
+            .size(13)
+            .color(p.text_muted);
+        let info_text = text("Enter your Master Password to decrypt your Account Encryption Key (AEK).")
+            .size(12)
+            .color(p.primary);
+
+        let password_input = column![
+            text("Master Password").size(12).color(p.text_muted),
+            text_input("••••••••••••", &self.snapshot.auth_form.master_password)
+                .on_input(Message::MasterPasswordChanged)
+                .secure(true)
+                .on_submit(Message::SubmitUnlockMasterPassword)
+                .padding(10),
+        ]
+        .spacing(4);
+
+        let unlock_btn = button(
+            text(if self.snapshot.auth_form.is_submitting {
+                "Unlocking..."
+            } else {
+                "Unlock Workspace"
+            })
+            .size(14)
+            .color(Color::WHITE),
+        )
+        .padding([12, 24])
+        .width(Length::Fill)
+        .style(move |_theme, _status| button::Style {
+            background: Some(p.primary.into()),
+            border: iced::Border {
+                radius: 8.0.into(),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .on_press(Message::SubmitUnlockMasterPassword);
+
+        let sign_out_btn = button(text("Sign Out").size(12).color(p.text_muted))
+            .padding([6, 12])
+            .on_press(Message::SignOutRequested);
+
+        let mut card_content = column![
+            logo,
+            Space::with_height(6),
+            title,
+            subtitle,
+            info_text,
+            Space::with_height(12),
+            password_input,
+            Space::with_height(10),
+            unlock_btn,
+            Space::with_height(6),
+            sign_out_btn,
+        ]
+        .spacing(10)
+        .align_x(Alignment::Center);
+
+        if let Some(err) = &self.snapshot.auth_form.error_message {
+            card_content = card_content.push(
+                container(text(err).size(12).color(Color::WHITE))
+                    .padding(10)
+                    .width(Length::Fill)
+                    .style(move |_| container::Style {
+                        background: Some(p.danger.into()),
+                        border: iced::Border {
+                            radius: 6.0.into(),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    }),
+            );
+        }
+
+        let card = container(card_content)
+            .width(420)
+            .padding(28)
+            .style(move |_| container::Style {
+                background: Some(p.surface.into()),
+                border: iced::Border {
+                    color: p.border,
+                    width: 1.0,
+                    radius: 14.0.into(),
+                },
+                ..Default::default()
+            });
+
+        container(card)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .align_x(Horizontal::Center)
+            .align_y(Vertical::Center)
+            .style(move |_| container::Style {
+                background: Some(p.background.into()),
+                ..Default::default()
+            })
+            .into()
+    }
+
+    fn view_workspace(&self, p: KeeftalkPalette) -> Element<'_, Message> {
         let top_bar = self.view_top_bar(p);
         let sidebar = self.view_sidebar(p);
         let main_content = self.view_main_content(p);
@@ -264,6 +569,32 @@ impl KeeftalkApp {
         }
     }
 
+    fn user_avatar_badge<'a>(&self, name: &'a str, p: KeeftalkPalette) -> Element<'a, Message> {
+        let initials = name
+            .split_whitespace()
+            .filter_map(|w| w.chars().next())
+            .take(2)
+            .collect::<String>()
+            .to_uppercase();
+        let display_initials = if initials.is_empty() { "KT".to_string() } else { initials };
+
+        container(
+            text(display_initials)
+                .size(11)
+                .color(Color::WHITE),
+        )
+        .padding([4, 8])
+        .style(move |_| container::Style {
+            background: Some(p.primary.into()),
+            border: iced::Border {
+                radius: 50.0.into(),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .into()
+    }
+
     fn view_top_bar(&self, p: KeeftalkPalette) -> Element<'_, Message> {
         let logo = svg(svg::Handle::from_memory(KEEFTALK_LOGO_SVG))
             .width(26)
@@ -281,6 +612,14 @@ impl KeeftalkApp {
             AppMode::Cloud => p.primary,
         };
 
+        let user_name = match &self.snapshot.auth {
+            AuthState::SignedIn { email, .. } => email.as_deref().unwrap_or("User"),
+            AuthState::MockDemo { display_name, .. } => display_name.as_str(),
+            _ => "Local User",
+        };
+
+        let user_badge = self.user_avatar_badge(user_name, p);
+
         let search_btn = button(text("Search or Command (Ctrl+K)").size(13).color(p.text_muted))
             .padding([6, 14])
             .on_press(Message::ToggleCommandPalette);
@@ -293,6 +632,10 @@ impl KeeftalkApp {
             .padding([6, 10])
             .on_press(Message::ToggleContextPanel);
 
+        let sign_out_btn = button(text("Sign Out").size(11).color(p.text_muted))
+            .padding([4, 8])
+            .on_press(Message::SignOutRequested);
+
         container(
             row![
                 sidebar_btn,
@@ -304,6 +647,8 @@ impl KeeftalkApp {
                 Space::with_width(Length::Fill),
                 search_btn,
                 Space::with_width(12),
+                user_badge,
+                text(user_name).size(12),
                 container(text(mode_label).size(11).color(Color::WHITE))
                     .padding([4, 8])
                     .style(move |_| container::Style {
@@ -314,6 +659,7 @@ impl KeeftalkApp {
                         },
                         ..Default::default()
                     }),
+                sign_out_btn,
                 ctx_btn,
             ]
             .spacing(10)
@@ -326,6 +672,33 @@ impl KeeftalkApp {
             ..Default::default()
         })
         .into()
+    }
+
+    fn module_icon_str(&self, module: ModuleId) -> &'static str {
+        match module {
+            ModuleId::Home => "🏠",
+            ModuleId::Chats => "💬",
+            ModuleId::Calls => "📞",
+            ModuleId::SmsInfo => "📱",
+            ModuleId::Notes => "📝",
+            ModuleId::Calendar => "📅",
+            ModuleId::Todo => "📋",
+            ModuleId::Habits => "🔄",
+            ModuleId::Books => "📚",
+            ModuleId::Docs => "📄",
+            ModuleId::Vault => "🔒",
+            ModuleId::Secrets => "🔑",
+            ModuleId::SecurityCenter => "🛡️",
+            ModuleId::Wallet => "💳",
+            ModuleId::Finances => "📊",
+            ModuleId::Market => "🏪",
+            ModuleId::Feed => "📰",
+            ModuleId::Browser => "🌐",
+            ModuleId::Email => "✉️",
+            ModuleId::Maps => "🗺️",
+            ModuleId::Din => "🕌",
+            ModuleId::Settings => "⚙️",
+        }
     }
 
     fn view_sidebar(&self, p: KeeftalkPalette) -> Element<'_, Message> {
@@ -366,10 +739,11 @@ impl KeeftalkApp {
             }
             for &module in *modules {
                 let is_active = self.active_module == module;
+                let icon_str = self.module_icon_str(module);
                 let label = if self.sidebar_collapsed {
-                    module.title().chars().take(2).collect::<String>()
+                    icon_str.to_string()
                 } else {
-                    module.title().to_string()
+                    format!("{icon_str} {}", module.title())
                 };
 
                 let btn = button(text(label).size(13))
@@ -392,7 +766,7 @@ impl KeeftalkApp {
 
         let settings_active = self.active_module == ModuleId::Settings;
         items = items.push(horizontal_rule(1)).push(
-            button(text(if self.sidebar_collapsed { "St" } else { "Settings" }).size(13))
+            button(text(if self.sidebar_collapsed { "⚙️" } else { "⚙️ Settings" }).size(13))
                 .width(Length::Fill)
                 .padding([8, 10])
                 .style(move |_theme, _status| button::Style {
@@ -503,13 +877,19 @@ impl KeeftalkApp {
         let mut list = column![text("Conversations").size(16)].spacing(8);
         for (idx, conv) in self.snapshot.conversations.iter().enumerate() {
             let selected = idx == self.selected_chat_idx;
+            let avatar = self.user_avatar_badge(&conv.title, p);
             list = list.push(
                 button(
-                    column![
-                        text(&conv.title).size(14),
-                        text(&conv.last_message_preview).size(12).color(p.text_muted),
+                    row![
+                        avatar,
+                        Space::with_width(6),
+                        column![
+                            text(&conv.title).size(14),
+                            text(&conv.last_message_preview).size(12).color(p.text_muted),
+                        ]
+                        .spacing(3),
                     ]
-                    .spacing(3),
+                    .align_y(Alignment::Center),
                 )
                 .width(Length::Fill)
                 .padding(10)
@@ -532,26 +912,33 @@ impl KeeftalkApp {
             for m in &conv.messages {
                 let bubble_bg = if m.is_outgoing { p.primary } else { p.surface_alt };
                 let bubble_fg = if m.is_outgoing { Color::WHITE } else { p.text_primary };
+                let avatar = self.user_avatar_badge(&m.sender_name, p);
+
                 msgs = msgs.push(
-                    container(
-                        column![
-                            text(format!("{} • {}", m.sender_name, if m.encrypted { "E2EE" } else { "Plain" }))
-                                .size(11)
-                                .color(if m.is_outgoing { Color::from_rgba(1.0, 1.0, 1.0, 0.8) } else { p.text_muted }),
-                            text(&m.body).size(14).color(bubble_fg),
-                        ]
-                        .spacing(3),
-                    )
-                    .padding(10)
-                    .width(Length::FillPortion(3))
-                    .style(move |_| container::Style {
-                        background: Some(bubble_bg.into()),
-                        border: iced::Border {
-                            radius: 8.0.into(),
+                    row![
+                        avatar,
+                        Space::with_width(6),
+                        container(
+                            column![
+                                text(format!("{} • {}", m.sender_name, if m.encrypted { "E2EE" } else { "Plain" }))
+                                    .size(11)
+                                    .color(if m.is_outgoing { Color::from_rgba(1.0, 1.0, 1.0, 0.8) } else { p.text_muted }),
+                                text(&m.body).size(14).color(bubble_fg),
+                            ]
+                            .spacing(3),
+                        )
+                        .padding(10)
+                        .width(Length::FillPortion(3))
+                        .style(move |_| container::Style {
+                            background: Some(bubble_bg.into()),
+                            border: iced::Border {
+                                radius: 8.0.into(),
+                                ..Default::default()
+                            },
                             ..Default::default()
-                        },
-                        ..Default::default()
-                    }),
+                        }),
+                    ]
+                    .align_y(Alignment::Start),
                 );
             }
 
@@ -568,7 +955,12 @@ impl KeeftalkApp {
             .spacing(8);
 
             column![
-                text(&conv.title).size(18),
+                row![
+                    self.user_avatar_badge(&conv.title, p),
+                    Space::with_width(8),
+                    text(&conv.title).size(18),
+                ]
+                .align_y(Alignment::Center),
                 horizontal_rule(1),
                 scrollable(msgs).height(Length::Fill),
                 composer,

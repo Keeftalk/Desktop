@@ -1,10 +1,15 @@
 # Build artifacts
 /target/
+target/
+**/target/
+**/target/debug/build
 **/*.rs.bk
 *.pdb
+*.log
 
 # Local environment & secrets (NEVER commit)
 .env
+.env*
 .env.local
 .env.*.local
 config/local.toml

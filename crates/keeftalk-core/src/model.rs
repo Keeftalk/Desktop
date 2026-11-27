@@ -85,6 +85,15 @@ impl ModuleId {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct AuthFormState {
+    pub sign_in_email: String,
+    pub sign_in_password: String,
+    pub master_password: String,
+    pub error_message: Option<String>,
+    pub is_submitting: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatMessage {
     pub id: String,
@@ -166,6 +175,7 @@ pub struct VaultEntry {
 pub struct WorkspaceSnapshot {
     pub mode: AppMode,
     pub auth: AuthState,
+    pub auth_form: AuthFormState,
     pub sync: SyncSummary,
     pub conversations: Vec<ChatConversation>,
     pub notes: Vec<NoteItem>,
@@ -179,6 +189,7 @@ impl WorkspaceSnapshot {
         Self {
             mode,
             auth,
+            auth_form: AuthFormState::default(),
             sync: SyncSummary::default(),
             conversations: Vec::new(),
             notes: Vec::new(),

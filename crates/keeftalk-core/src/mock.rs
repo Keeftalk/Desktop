@@ -138,6 +138,7 @@ pub fn generate_demo_snapshot() -> WorkspaceSnapshot {
             user_id: "00000000-0000-4000-8000-00000000demo".into(),
             display_name: "Demo Contributor".into(),
         },
+        auth_form: Default::default(),
         sync: SyncSummary {
             status: SyncStatus::LocalOnly,
             pending_items: 0,

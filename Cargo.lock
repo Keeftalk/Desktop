@@ -2470,6 +2470,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "iced",
+ "keeftalk-auth",
  "keeftalk-core",
  "keeftalk-settings",
  "keeftalk-sync",
