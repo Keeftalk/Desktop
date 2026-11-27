@@ -3,14 +3,17 @@ name = "keeftalk-api"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Supabase PostgREST, Edge Functions, and Realtime client contracts"
+description = "Supabase PostgREST, GoTrue Auth, Edge Functions, and Realtime WebSocket client"
 
 [dependencies]
+futures-util = "0.3"
 keeftalk-settings.workspace = true
+reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
+tokio-tungstenite.workspace = true
 tracing.workspace = true
 url.workspace = true
 
