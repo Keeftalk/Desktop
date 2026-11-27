@@ -1,0 +1,19 @@
+[package]
+name = "keeftalk-auth"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Supabase authentication, session lifecycle, 2FA, and AEK key recovery"
+
+[dependencies]
+keeftalk-api.workspace = true
+keeftalk-crypto.workspace = true
+keeftalk-platform.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+zeroize.workspace = true
+
+[lints]
+workspace = true

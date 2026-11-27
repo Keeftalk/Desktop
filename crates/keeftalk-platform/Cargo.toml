@@ -1,0 +1,18 @@
+[package]
+name = "keeftalk-platform"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "OS abstractions for secure credential storage, app directories, and clipboard auto-clear"
+
+[dependencies]
+arboard.workspace = true
+directories.workspace = true
+keyring.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+zeroize.workspace = true
+
+[lints]
+workspace = true

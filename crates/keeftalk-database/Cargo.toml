@@ -1,0 +1,16 @@
+[package]
+name = "keeftalk-database"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Encrypted SQLite/SQLCipher persistence layer, migrations, and local backups"
+
+[dependencies]
+keeftalk-crypto.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true

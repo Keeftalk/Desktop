@@ -1,0 +1,17 @@
+[package]
+name = "keeftalk-storage"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Cloudflare R2 presigned object client and encrypted chunk streaming"
+
+[dependencies]
+keeftalk-api.workspace = true
+keeftalk-crypto.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true

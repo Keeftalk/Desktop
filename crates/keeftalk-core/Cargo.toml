@@ -1,0 +1,28 @@
+[package]
+name = "keeftalk-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Keeftalk Desktop domain models, application services, and mock/demo data engine"
+
+[dependencies]
+async-trait.workspace = true
+chrono.workspace = true
+keeftalk-api.workspace = true
+keeftalk-auth.workspace = true
+keeftalk-crypto.workspace = true
+keeftalk-database.workspace = true
+keeftalk-notifications.workspace = true
+keeftalk-platform.workspace = true
+keeftalk-settings.workspace = true
+keeftalk-storage.workspace = true
+keeftalk-sync.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+
+[lints]
+workspace = true

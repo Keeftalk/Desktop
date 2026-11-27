@@ -1,0 +1,15 @@
+[package]
+name = "keeftalk-notifications"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Cross-platform desktop notifications and audio cue dispatch"
+
+[dependencies]
+notify-rust.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true

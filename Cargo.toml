@@ -1,0 +1,83 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/keeftalk-app",
+    "crates/keeftalk-core",
+    "crates/keeftalk-ui",
+    "crates/keeftalk-database",
+    "crates/keeftalk-crypto",
+    "crates/keeftalk-auth",
+    "crates/keeftalk-sync",
+    "crates/keeftalk-api",
+    "crates/keeftalk-storage",
+    "crates/keeftalk-notifications",
+    "crates/keeftalk-settings",
+    "crates/keeftalk-platform",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/Keeftalk/Desktop"
+homepage = "https://keeftalk.com"
+authors = ["Keeftalk Ecosystem Contributors"]
+
+[workspace.dependencies]
+# Async & Concurrency
+tokio = { version = "1.44", features = ["full"] }
+async-trait = "0.1"
+
+# Serialization & Config
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+
+# Error Handling & Logging
+anyhow = "1.0"
+thiserror = "2.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+
+# Time, IDs, URLs
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.16", features = ["v4", "serde"] }
+url = { version = "2.5", features = ["serde"] }
+
+# Cryptography & Memory Safety
+aes-gcm = "0.10"
+argon2 = "0.5"
+base64 = "0.22"
+hmac = "0.12"
+rand = "0.8"
+sha2 = "0.10"
+zeroize = { version = "1.8", features = ["derive"] }
+
+# Platform & Desktop
+directories = "6.0"
+keyring = { version = "3.6", features = ["apple-native", "windows-native", "sync-secret-service"] }
+arboard = "3.4"
+notify-rust = "4.11"
+
+# Internal Crates
+keeftalk-crypto = { path = "crates/keeftalk-crypto" }
+keeftalk-settings = { path = "crates/keeftalk-settings" }
+keeftalk-platform = { path = "crates/keeftalk-platform" }
+keeftalk-database = { path = "crates/keeftalk-database" }
+keeftalk-api = { path = "crates/keeftalk-api" }
+keeftalk-auth = { path = "crates/keeftalk-auth" }
+keeftalk-storage = { path = "crates/keeftalk-storage" }
+keeftalk-sync = { path = "crates/keeftalk-sync" }
+keeftalk-notifications = { path = "crates/keeftalk-notifications" }
+keeftalk-core = { path = "crates/keeftalk-core" }
+keeftalk-ui = { path = "crates/keeftalk-ui" }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+dbg_macro = "warn"
+todo = "warn"
+unwrap_used = "warn"
