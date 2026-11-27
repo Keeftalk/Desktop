@@ -1,0 +1,16 @@
+name: Feature Request
+description: Suggest a feature or module enhancement for Keeftalk Desktop
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Feature description
+    validations:
+      required: true
+  - type: textarea
+    id: privacy
+    attributes:
+      label: Privacy & offline considerations
+      description: How should this work offline and without tracking?
