@@ -14,7 +14,7 @@ jobs:
     name: Format, Clippy & Secret Hygiene
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -54,7 +54,7 @@ jobs:
             binary_path: target/x86_64-apple-darwin/release/keeftalk-desktop
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
