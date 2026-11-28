@@ -2320,7 +2320,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "keeftalk-core",
- "keeftalk-notifications",
  "keeftalk-platform",
  "keeftalk-settings",
  "keeftalk-ui",
@@ -2355,10 +2354,8 @@ dependencies = [
  "keeftalk-auth",
  "keeftalk-crypto",
  "keeftalk-database",
- "keeftalk-notifications",
  "keeftalk-platform",
  "keeftalk-settings",
- "keeftalk-storage",
  "keeftalk-sync",
  "serde",
  "serde_json",
@@ -2378,7 +2375,6 @@ dependencies = [
  "hmac",
  "rand 0.8.8",
  "serde",
- "serde_json",
  "sha2",
  "thiserror 2.0.21",
  "zeroize",
@@ -2406,7 +2402,6 @@ dependencies = [
  "notify-rust",
  "serde",
  "thiserror 2.0.21",
- "tracing",
 ]
 
 [[package]]
@@ -2418,7 +2413,6 @@ dependencies = [
  "keyring",
  "thiserror 2.0.21",
  "tokio",
- "tracing",
  "zeroize",
 ]
 
@@ -2429,7 +2423,6 @@ dependencies = [
  "serde",
  "thiserror 2.0.21",
  "toml",
- "tracing",
  "url",
 ]
 
@@ -2438,7 +2431,6 @@ name = "keeftalk-storage"
 version = "0.1.0"
 dependencies = [
  "keeftalk-api",
- "keeftalk-crypto",
  "reqwest",
  "serde",
  "serde_json",

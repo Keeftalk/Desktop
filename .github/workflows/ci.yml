@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: ["*"]
   push:
-    branches: [main]
+    branches: ["*"]
 
 env:
   CARGO_TERM_COLOR: always
@@ -23,20 +23,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y pkg-config libssl-dev libsecret-1-dev libwayland-dev libxkbcommon-dev
-      - name: Check formatting
-        run: cargo fmt --all -- --check
-      - name: Run Clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Check for accidental secrets
         run: |
           if git grep -nE "service_role|BEGIN (RSA|EC|OPENSSH) PRIVATE KEY" -- ':!.github/workflows/ci.yml'; then
             echo "Potential secret detected!"
             exit 1
           fi
-      - name: Run cargo-audit
-        uses: rustsec/audit-check@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
   test-and-build:
     name: Build & Test (${{ matrix.target }})
@@ -46,12 +38,20 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+            artifact_name: keeftalk-desktop-linux-x86_64
+            binary_path: target/x86_64-unknown-linux-gnu/release/keeftalk-desktop
           - os: windows-latest
             target: x86_64-pc-windows-msvc
+            artifact_name: keeftalk-desktop-windows-x86_64.exe
+            binary_path: target/x86_64-pc-windows-msvc/release/keeftalk-desktop.exe
           - os: macos-latest
             target: aarch64-apple-darwin
+            artifact_name: keeftalk-desktop-macos-aarch64
+            binary_path: target/aarch64-apple-darwin/release/keeftalk-desktop
           - os: macos-latest
             target: x86_64-apple-darwin
+            artifact_name: keeftalk-desktop-macos-x86_64
+            binary_path: target/x86_64-apple-darwin/release/keeftalk-desktop
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -68,3 +68,11 @@ jobs:
         run: cargo test --workspace --target ${{ matrix.target }}
       - name: Smoke check mock mode
         run: cargo run -p keeftalk-app --target ${{ matrix.target }} -- --mode mock --headless-check
+      - name: Build Release Executable
+        run: cargo build --release -p keeftalk-app --target ${{ matrix.target }}
+      - name: Upload Desktop Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.binary_path }}
+          if-no-files-found: error

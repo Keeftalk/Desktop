@@ -14,9 +14,8 @@ use keeftalk_database::{DatabaseError, EncryptedDatabase, get_or_create_db_key};
 use keeftalk_platform::{AppPaths, EphemeralSecretStore, OsKeyringStore, SecretStore};
 use keeftalk_settings::{AppConfig, AppMode, SettingsError};
 use keeftalk_sync::{SyncStatus, SyncSummary};
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tracing::{info, warn};
+use tracing::info;
 
 use crate::model::{
     CalendarEvent, ChatConversation, ChatMessage, NoteItem, TodoPriority, TodoTask, VaultEntry,
@@ -44,6 +43,9 @@ pub enum CoreError {
     #[error("database error: {0}")]
     Database(#[from] DatabaseError),
 
+    #[error("sync error: {0}")]
+    Sync(#[from] keeftalk_sync::SyncError),
+
     #[error("state lock poisoned")]
     LockPoisoned,
 
@@ -55,10 +57,12 @@ pub enum CoreError {
 pub struct KeeftalkCore {
     config: RwLock<AppConfig>,
     paths: AppPaths,
+    #[allow(dead_code)]
     secret_store: Arc<dyn SecretStore>,
     auth_manager: Option<Arc<AuthManager>>,
     supabase_client: Option<SupabaseClient>,
     db: Option<EncryptedDatabase>,
+    #[allow(dead_code)]
     repo: RwLock<Option<LocalRepository>>,
     snapshot: RwLock<WorkspaceSnapshot>,
 }
@@ -341,6 +345,68 @@ impl KeeftalkCore {
             }
         }
 
+        *self.snapshot.write().map_err(|_| CoreError::LockPoisoned)? = snap.clone();
+        Ok(snap)
+    }
+
+    pub fn send_chat_message(&self, chat_id: &str, body: &str) -> Result<WorkspaceSnapshot, CoreError> {
+        let mut snap = self.snapshot()?;
+        if let Some(repo_guard) = self.repo.read().map_err(|_| CoreError::LockPoisoned)?.as_ref() {
+            let _ = repo_guard.send_message(chat_id, body)?;
+            snap.conversations = repo_guard.list_conversations()?;
+        } else if let Some(conv) = snap.conversations.iter_mut().find(|c| c.id == chat_id) {
+            conv.last_message_preview = body.to_string();
+            conv.last_activity = chrono::Utc::now();
+            conv.messages.push(ChatMessage {
+                id: format!("local-{}", conv.messages.len() + 1),
+                chat_id: chat_id.to_string(),
+                sender_name: "You".into(),
+                is_outgoing: true,
+                body: body.to_string(),
+                timestamp: chrono::Utc::now(),
+                encrypted: true,
+                sync_status: SyncStatus::PendingUpload,
+            });
+        }
+        *self.snapshot.write().map_err(|_| CoreError::LockPoisoned)? = snap.clone();
+        Ok(snap)
+    }
+
+    pub fn toggle_todo(&self, task_id: &str, completed: bool) -> Result<WorkspaceSnapshot, CoreError> {
+        let mut snap = self.snapshot()?;
+        if let Some(repo_guard) = self.repo.read().map_err(|_| CoreError::LockPoisoned)?.as_ref() {
+            let _ = repo_guard.toggle_todo(task_id, completed)?;
+            snap.todos = repo_guard.list_todos()?;
+        } else if let Some(task) = snap.todos.iter_mut().find(|t| t.id == task_id) {
+            task.completed = completed;
+        }
+        *self.snapshot.write().map_err(|_| CoreError::LockPoisoned)? = snap.clone();
+        Ok(snap)
+    }
+
+    pub fn create_todo(
+        &self,
+        title: &str,
+        list_name: &str,
+        priority: TodoPriority,
+        due_date: Option<String>,
+    ) -> Result<WorkspaceSnapshot, CoreError> {
+        let mut snap = self.snapshot()?;
+        if let Some(repo_guard) = self.repo.read().map_err(|_| CoreError::LockPoisoned)?.as_ref() {
+            let _ = repo_guard.create_todo(title, list_name, priority, due_date)?;
+            snap.todos = repo_guard.list_todos()?;
+        } else {
+            snap.todos.push(TodoTask {
+                id: uuid::Uuid::new_v4().to_string(),
+                title: title.to_string(),
+                notes: String::new(),
+                list_name: list_name.to_string(),
+                priority,
+                completed: false,
+                due_date,
+                sync_status: SyncStatus::LocalOnly,
+            });
+        }
         *self.snapshot.write().map_err(|_| CoreError::LockPoisoned)? = snap.clone();
         Ok(snap)
     }

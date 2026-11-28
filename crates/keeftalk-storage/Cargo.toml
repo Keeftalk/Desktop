@@ -7,7 +7,6 @@ description = "Cloudflare R2 presigned object client and encrypted chunk streami
 
 [dependencies]
 keeftalk-api.workspace = true
-keeftalk-crypto.workspace = true
 reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true

@@ -9,7 +9,6 @@ description = "Cross-platform desktop notifications and audio cue dispatch"
 notify-rust.workspace = true
 serde.workspace = true
 thiserror.workspace = true
-tracing.workspace = true
 
 [lints]
 workspace = true

@@ -174,7 +174,7 @@ impl KeeftalkApp {
             Message::CreateTodo => {
                 let title = self.new_todo_title.trim().to_string();
                 if !title.is_empty()
-                    && let Ok((_, next)) =
+                    && let Ok(next) =
                         self.core.create_todo(&title, "General", TodoPriority::Medium, None)
                 {
                     self.snapshot = next;
