@@ -64,13 +64,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y pkg-config libssl-dev libsecret-1-dev libwayland-dev libxkbcommon-dev
-      - name: Run workspace tests
-        run: cargo test --workspace --target ${{ matrix.target }}
-      - name: Smoke check mock mode
-        run: cargo run -p keeftalk-app --target ${{ matrix.target }} -- --mode mock --headless-check
       - name: Build Release Executable
         run: cargo build --release -p keeftalk-app --target ${{ matrix.target }}
-      - name: Upload Desktop Artifacts
+      - name: Run workspace tests in release mode
+        run: cargo test --release --workspace --target ${{ matrix.target }}
+      - name: Smoke check mock mode
+        run: cargo run --release -p keeftalk-app --target ${{ matrix.target }} -- --mode mock --headless-check
+      - name: Upload Desktop Release Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
