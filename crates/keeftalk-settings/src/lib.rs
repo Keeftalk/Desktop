@@ -3,8 +3,9 @@
 //! Configuration precedence (lowest to highest):
 //! 1. Built-in `config/defaults.toml`
 //! 2. Explicit config file (if present)
-//! 3. Environment variables (`KEEFTALK_MODE`, `KEEFTALK_SUPABASE_URL`, etc.)
+//! 3. Environment variables (`KEEFTALK_MODE`, `KEEFTALK_SUPABASE_URL`, etc.) or `.env`
 
+use std::collections::HashMap;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
@@ -132,27 +133,59 @@ impl AppConfig {
     }
 
     fn apply_env_overrides(&mut self) -> Result<(), SettingsError> {
-        if let Ok(mode) = std::env::var("KEEFTALK_MODE")
-            && !mode.trim().is_empty()
-        {
+        let dotenv_map = Self::read_dotenv_map();
+
+        let lookup = |keys: &[&str]| -> Option<String> {
+            for key in keys {
+                if let Ok(val) = std::env::var(key)
+                    && !val.trim().is_empty()
+                {
+                    return Some(val.trim().to_string());
+                }
+                if let Some(val) = dotenv_map.get(*key)
+                    && !val.trim().is_empty()
+                {
+                    return Some(val.trim().to_string());
+                }
+            }
+            None
+        };
+
+        if let Some(mode) = lookup(&["KEEFTALK_MODE"]) {
             self.app.mode = AppMode::from_env_str(&mode)?;
         }
-        if let Ok(url) = std::env::var("KEEFTALK_SUPABASE_URL")
-            && !url.trim().is_empty()
-        {
-            self.backend.supabase_url = url.trim().to_string();
+        if let Some(url) = lookup(&["KEEFTALK_SUPABASE_URL", "SUPABASE_URL"]) {
+            self.backend.supabase_url = url;
         }
-        if let Ok(key) = std::env::var("KEEFTALK_SUPABASE_ANON_KEY")
-            && !key.trim().is_empty()
-        {
-            self.backend.supabase_anon_key = key.trim().to_string();
+        if let Some(key) = lookup(&["KEEFTALK_SUPABASE_ANON_KEY", "SUPABASE_ANON_KEY"]) {
+            self.backend.supabase_anon_key = key;
         }
-        if let Ok(level) = std::env::var("KEEFTALK_LOG_LEVEL")
-            && !level.trim().is_empty()
-        {
-            self.logging.level = level.trim().to_string();
+        if let Some(level) = lookup(&["KEEFTALK_LOG_LEVEL"]) {
+            self.logging.level = level;
         }
+
         Ok(())
+    }
+
+    fn read_dotenv_map() -> HashMap<String, String> {
+        let mut map = HashMap::new();
+        let env_paths = [".env", "../.env"];
+        for path in env_paths {
+            if let Ok(content) = std::fs::read_to_string(path) {
+                for line in content.lines() {
+                    let trimmed = line.trim();
+                    if trimmed.is_empty() || trimmed.starts_with('#') {
+                        continue;
+                    }
+                    if let Some((k, v)) = trimmed.split_once('=') {
+                        let key = k.trim().to_string();
+                        let val = v.trim().trim_matches('"').trim_matches('\'').to_string();
+                        map.insert(key, val);
+                    }
+                }
+            }
+        }
+        map
     }
 
     pub fn validate(&self) -> Result<(), SettingsError> {
@@ -199,6 +232,9 @@ mod tests {
     fn cloud_mode_requires_backend_url_and_key() {
         let mut cfg = AppConfig::load(None).expect("defaults should load");
         cfg.app.mode = AppMode::Cloud;
+        // Clear env overrides for test run
+        cfg.backend.supabase_url.clear();
+        cfg.backend.supabase_anon_key.clear();
         let err = cfg.validate().expect_err("cloud mode without URL must fail");
         assert!(err.to_string().contains("supabase_url"));
     }

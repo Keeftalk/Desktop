@@ -2,11 +2,7 @@
 name = "keeftalk-app"
 version.workspace = true
 edition.workspace = true
-rust-version.workspace = true
 license.workspace = true
-repository.workspace = true
-homepage.workspace = true
-authors.workspace = true
 description = "Keeftalk Desktop binary entry point, logging initialization, and service wiring"
 
 [[bin]]
@@ -16,7 +12,6 @@ path = "src/main.rs"
 [dependencies]
 anyhow.workspace = true
 keeftalk-core.workspace = true
-keeftalk-notifications.workspace = true
 keeftalk-platform.workspace = true
 keeftalk-settings.workspace = true
 keeftalk-ui.workspace = true
