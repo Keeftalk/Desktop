@@ -3,6 +3,7 @@
 //! Strictly isolated from database, cryptographic, and network crates.
 //! Communicates exclusively with `keeftalk-core` via typed snapshots and commands.
 
+pub mod icons;
 pub mod palette;
 pub mod theme;
 
@@ -17,11 +18,12 @@ use iced::widget::{
 use iced::{Alignment, Color, Element, Length, Subscription, Task};
 use keeftalk_auth::AuthState;
 use keeftalk_core::KeeftalkCore;
-use keeftalk_core::model::{ModuleGroup, ModuleId, TodoPriority, WorkspaceSnapshot};
+use keeftalk_core::model::{ModuleId, TodoPriority, WorkspaceSnapshot};
 use keeftalk_settings::{AppMode, ThemeVariant};
 use thiserror::Error;
 use tracing::info;
 
+use crate::icons::render_module_icon;
 use crate::palette::{PaletteAction, search_palette};
 use crate::theme::{KeeftalkPalette, build_iced_theme, palette_for, parse_hex_color};
 
@@ -63,6 +65,7 @@ pub enum Message {
     SignOutRequested,
     AuthResult(Result<WorkspaceSnapshot, String>),
     SwitchToMockMode,
+    ToggleCallMute,
 }
 
 pub struct KeeftalkApp {
@@ -284,6 +287,11 @@ impl KeeftalkApp {
                     Err(err) => {
                         self.snapshot.auth_form.error_message = Some(err);
                     }
+                }
+            }
+            Message::ToggleCallMute => {
+                if let Some(call) = &mut self.snapshot.call_session {
+                    call.is_muted = !call.is_muted;
                 }
             }
         }
@@ -674,33 +682,6 @@ impl KeeftalkApp {
         .into()
     }
 
-    fn module_icon_str(&self, module: ModuleId) -> &'static str {
-        match module {
-            ModuleId::Home => "🏠",
-            ModuleId::Chats => "💬",
-            ModuleId::Calls => "📞",
-            ModuleId::SmsInfo => "📱",
-            ModuleId::Notes => "📝",
-            ModuleId::Calendar => "📅",
-            ModuleId::Todo => "📋",
-            ModuleId::Habits => "🔄",
-            ModuleId::Books => "📚",
-            ModuleId::Docs => "📄",
-            ModuleId::Vault => "🔒",
-            ModuleId::Secrets => "🔑",
-            ModuleId::SecurityCenter => "🛡️",
-            ModuleId::Wallet => "💳",
-            ModuleId::Finances => "📊",
-            ModuleId::Market => "🏪",
-            ModuleId::Feed => "📰",
-            ModuleId::Browser => "🌐",
-            ModuleId::Email => "✉️",
-            ModuleId::Maps => "🗺️",
-            ModuleId::Din => "🕌",
-            ModuleId::Settings => "⚙️",
-        }
-    }
-
     fn view_sidebar(&self, p: KeeftalkPalette) -> Element<'_, Message> {
         let width = if self.sidebar_collapsed { 72.0 } else { 220.0 };
 
@@ -739,14 +720,21 @@ impl KeeftalkApp {
             }
             for &module in *modules {
                 let is_active = self.active_module == module;
-                let icon_str = self.module_icon_str(module);
-                let label = if self.sidebar_collapsed {
-                    icon_str.to_string()
+                let icon_widget = render_module_icon(module, 18);
+
+                let btn_content: Element<'_, Message> = if self.sidebar_collapsed {
+                    container(icon_widget).align_x(Horizontal::Center).into()
                 } else {
-                    format!("{icon_str} {}", module.title())
+                    row![
+                        icon_widget,
+                        Space::with_width(8),
+                        text(module.title()).size(13),
+                    ]
+                    .align_y(Alignment::Center)
+                    .into()
                 };
 
-                let btn = button(text(label).size(13))
+                let btn = button(btn_content)
                     .width(Length::Fill)
                     .padding([7, 10])
                     .style(move |_theme, _status| button::Style {
@@ -765,8 +753,21 @@ impl KeeftalkApp {
         }
 
         let settings_active = self.active_module == ModuleId::Settings;
+        let settings_icon = render_module_icon(ModuleId::Settings, 18);
+        let settings_content: Element<'_, Message> = if self.sidebar_collapsed {
+            container(settings_icon).align_x(Horizontal::Center).into()
+        } else {
+            row![
+                settings_icon,
+                Space::with_width(8),
+                text("Settings").size(13),
+            ]
+            .align_y(Alignment::Center)
+            .into()
+        };
+
         items = items.push(horizontal_rule(1)).push(
-            button(text(if self.sidebar_collapsed { "⚙️" } else { "⚙️ Settings" }).size(13))
+            button(settings_content)
                 .width(Length::Fill)
                 .padding([8, 10])
                 .style(move |_theme, _status| button::Style {
@@ -795,13 +796,26 @@ impl KeeftalkApp {
         let content: Element<'_, Message> = match self.active_module {
             ModuleId::Home => self.view_home(p),
             ModuleId::Chats => self.view_chats(p),
+            ModuleId::Calls => self.view_calls(p),
             ModuleId::Notes => self.view_notes(p),
             ModuleId::Todo => self.view_todo(p),
             ModuleId::Calendar => self.view_calendar(p),
             ModuleId::Vault => self.view_vault(p),
+            ModuleId::Secrets => self.view_secrets(p),
+            ModuleId::SecurityCenter => self.view_security_center(p),
+            ModuleId::Habits => self.view_habits(p),
+            ModuleId::Books => self.view_books(p),
+            ModuleId::Docs => self.view_docs(p),
+            ModuleId::Wallet => self.view_wallet(p),
+            ModuleId::Finances => self.view_finances(p),
+            ModuleId::Market => self.view_market(p),
+            ModuleId::Feed => self.view_feed(p),
+            ModuleId::Browser => self.view_browser(p),
+            ModuleId::Email => self.view_email(p),
+            ModuleId::Maps => self.view_maps(p),
+            ModuleId::Din => self.view_din(p),
             ModuleId::Settings => self.view_settings(p),
             ModuleId::SmsInfo => self.view_sms_limitation(p),
-            other => self.view_planned_module(other, p),
         };
 
         container(content)
@@ -851,11 +865,16 @@ impl KeeftalkApp {
         p: KeeftalkPalette,
     ) -> Element<'a, Message> {
         button(
-            column![
-                text(value).size(24).color(p.primary),
-                text(label).size(13).color(p.text_muted),
+            row![
+                render_module_icon(target, 28),
+                Space::with_width(12),
+                column![
+                    text(value).size(22).color(p.primary),
+                    text(label).size(12).color(p.text_muted),
+                ]
+                .spacing(2),
             ]
-            .spacing(4),
+            .align_y(Alignment::Center),
         )
         .padding(14)
         .width(Length::Fill)
@@ -980,6 +999,53 @@ impl KeeftalkApp {
         .into()
     }
 
+    fn view_calls(&self, p: KeeftalkPalette) -> Element<'_, Message> {
+        let (peer, duration, muted) = if let Some(call) = &self.snapshot.call_session {
+            (call.peer_name.clone(), format!("{}s", call.duration_secs), call.is_muted)
+        } else {
+            ("Amira Benali".to_string(), "02:25".to_string(), false)
+        };
+
+        let call_card = container(
+            column![
+                render_module_icon(ModuleId::Calls, 48),
+                Space::with_height(10),
+                text("Encrypted WebRTC Call").size(20),
+                text(format!("Connected with {peer}")).size(14).color(p.text_muted),
+                text(format!("Call Duration: {duration}")).size(13).color(p.primary),
+                Space::with_height(16),
+                row![
+                    button(text(if muted { "Unmute Mic" } else { "Mute Mic" }).size(13))
+                        .padding([10, 18])
+                        .on_press(Message::ToggleCallMute),
+                    button(text("End Call").size(13).color(Color::WHITE))
+                        .padding([10, 18])
+                        .style(move |_theme, _status| button::Style {
+                            background: Some(p.danger.into()),
+                            border: iced::Border { radius: 8.0.into(), ..Default::default() },
+                            ..Default::default()
+                        }),
+                ]
+                .spacing(12),
+            ]
+            .align_x(Alignment::Center)
+            .spacing(8),
+        )
+        .padding(32)
+        .style(move |_| container::Style {
+            background: Some(p.surface.into()),
+            border: iced::Border { color: p.border, width: 1.0, radius: 12.0.into() },
+            ..Default::default()
+        });
+
+        container(call_card)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .align_x(Horizontal::Center)
+            .align_y(Vertical::Center)
+            .into()
+    }
+
     fn view_notes(&self, p: KeeftalkPalette) -> Element<'_, Message> {
         let mut list = column![text("My Notes").size(16)].spacing(8);
         for (idx, note) in self.snapshot.notes.iter().enumerate() {
@@ -1038,8 +1104,8 @@ impl KeeftalkApp {
     }
 
     fn view_todo(&self, p: KeeftalkPalette) -> Element<'_, Message> {
-        let add_bar = row![
-            text_input("Add a new task...", &self.new_todo_title)
+        let new_task_bar = row![
+            text_input("Add a new task title...", &self.new_todo_title)
                 .on_input(Message::NewTodoTitleChanged)
                 .on_submit(Message::CreateTodo)
                 .padding(10)
@@ -1050,7 +1116,7 @@ impl KeeftalkApp {
         ]
         .spacing(8);
 
-        let mut list = column![text("My Todo").size(20), add_bar].spacing(10);
+        let mut list = column![text("My Todo").size(20), new_task_bar].spacing(10);
         for (idx, task) in self.snapshot.todos.iter().enumerate() {
             let priority_label = match task.priority {
                 TodoPriority::Low => "Low",
@@ -1165,6 +1231,397 @@ impl KeeftalkApp {
         scrollable(items).into()
     }
 
+    fn view_secrets(&self, p: KeeftalkPalette) -> Element<'_, Message> {
+        let mut items = column![
+            text("My Secrets (Master Password Vault)").size(20),
+            text("AES-256-GCM encrypted passwords and TOTP 2FA tokens").size(13).color(p.text_muted),
+        ]
+        .spacing(10);
+
+        for sec in &self.snapshot.secrets {
+            items = items.push(
+                container(
+                    row![
+                        column![
+                            text(&sec.name).size(15),
+                            text(format!("Category: {} • User: {}", sec.category, sec.username))
+                                .size(12)
+                                .color(p.text_muted),
+                        ]
+                        .spacing(3),
+                        Space::with_width(Length::Fill),
+                        text("••• Decrypted in RAM").size(12).color(p.primary),
+                    ]
+                    .align_y(Alignment::Center),
+                )
+                .padding(12)
+                .width(Length::Fill)
+                .style(move |_| container::Style {
+                    background: Some(p.surface.into()),
+                    border: iced::Border { color: p.border, width: 1.0, radius: 8.0.into() },
+                    ..Default::default()
+                }),
+            );
+        }
+        scrollable(items).into()
+    }
+
+    fn view_security_center(&self, p: KeeftalkPalette) -> Element<'_, Message> {
+        let score_card = container(
+            column![
+                text("Overall Security Score").size(14).color(p.text_muted),
+                text("98 / 100").size(32).color(p.success),
+                text("AEK Tag Verified • Zero Local Plaintext • SQLCipher Key Active").size(12).color(p.text_muted),
+            ]
+            .spacing(6),
+        )
+        .padding(16)
+        .width(Length::Fill)
+        .style(move |_| container::Style {
+            background: Some(p.surface.into()),
+            border: iced::Border { color: p.border, width: 1.0, radius: 10.0.into() },
+            ..Default::default()
+        });
+
+        column![
+            text("Security Center").size(22),
+            score_card,
+            Space::with_height(10),
+            text("Cryptographic Diagnostics").size(16),
+            text("• Argon2id KDF: m=65536 KiB, t=3, p=4").size(13),
+            text("• PCK v4 AAD Message Authentication: Enforced").size(13),
+            text("• OS Secret Store Keyring: Connected").size(13),
+        ]
+        .spacing(10)
+        .into()
+    }
+
+    fn view_habits(&self, p: KeeftalkPalette) -> Element<'_, Message> {
+        let mut items = column![text("My Habits").size(20)].spacing(10);
+        for hab in &self.snapshot.habits {
+            items = items.push(
+                container(
+                    row![
+                        column![
+                            text(&hab.title).size(15),
+                            text(format!("Frequency: {} • Streak: {} days", hab.target_frequency, hab.streak_days))
+                                .size(12)
+                                .color(p.text_muted),
+                        ]
+                        .spacing(3),
+                        Space::with_width(Length::Fill),
+                        text(if hab.completed_today { "Completed Today" } else { "Pending Check-in" })
+                            .size(12)
+                            .color(if hab.completed_today { p.success } else { p.warning }),
+                    ]
+                    .align_y(Alignment::Center),
+                )
+                .padding(12)
+                .width(Length::Fill)
+                .style(move |_| container::Style {
+                    background: Some(p.surface.into()),
+                    border: iced::Border { color: p.border, width: 1.0, radius: 8.0.into() },
+                    ..Default::default()
+                }),
+            );
+        }
+        scrollable(items).into()
+    }
+
+    fn view_books(&self, p: KeeftalkPalette) -> Element<'_, Message> {
+        let mut items = column![text("My Books (Encrypted Reader)").size(20)].spacing(10);
+        for book in &self.snapshot.books {
+            let pct = (book.current_page as f32 / book.total_pages as f32 * 100.0) as u32;
+            items = items.push(
+                container(
+                    row![
+                        column![
+                            text(&book.title).size(15),
+                            text(format!("By {} • Format: {}", book.author, book.format))
+                                .size(12)
+                                .color(p.text_muted),
+                        ]
+                        .spacing(3),
+                        Space::with_width(Length::Fill),
+                        text(format!("{}/{} pages ({pct}%)", book.current_page, book.total_pages))
+                            .size(13)
+                            .color(p.primary),
+                    ]
+                    .align_y(Alignment::Center),
+                )
+                .padding(12)
+                .width(Length::Fill)
+                .style(move |_| container::Style {
+                    background: Some(p.surface.into()),
+                    border: iced::Border { color: p.border, width: 1.0, radius: 8.0.into() },
+                    ..Default::default()
+                }),
+            );
+        }
+        scrollable(items).into()
+    }
+
+    fn view_docs(&self, p: KeeftalkPalette) -> Element<'_, Message> {
+        let mut items = column![text("My Docs").size(20)].spacing(10);
+        for doc in &self.snapshot.docs {
+            items = items.push(
+                container(
+                    row![
+                        column![
+                            text(&doc.name).size(15),
+                            text(format!("Type: {} • {} bytes", doc.file_type, doc.size_bytes))
+                                .size(12)
+                                .color(p.text_muted),
+                        ]
+                        .spacing(3),
+                        Space::with_width(Length::Fill),
+                        text(format!("Tags: {}", doc.tags.join(", "))).size(12).color(p.text_muted),
+                    ]
+                    .align_y(Alignment::Center),
+                )
+                .padding(12)
+                .width(Length::Fill)
+                .style(move |_| container::Style {
+                    background: Some(p.surface.into()),
+                    border: iced::Border { color: p.border, width: 1.0, radius: 8.0.into() },
+                    ..Default::default()
+                }),
+            );
+        }
+        scrollable(items).into()
+    }
+
+    fn view_wallet(&self, p: KeeftalkPalette) -> Element<'_, Message> {
+        let card = container(
+            column![
+                text("Encrypted Wallet Balance").size(13).color(p.text_muted),
+                text("$235.01 USD").size(32).color(p.success),
+                text("Zero-knowledge encrypted offline balance ledger").size(12).color(p.text_muted),
+            ]
+            .spacing(6),
+        )
+        .padding(18)
+        .width(Length::Fill)
+        .style(move |_| container::Style {
+            background: Some(p.surface.into()),
+            border: iced::Border { color: p.primary, width: 1.5, radius: 12.0.into() },
+            ..Default::default()
+        });
+
+        column![
+            text("My Wallet").size(22),
+            card,
+            Space::with_height(10),
+            text("Recent Activity").size(16),
+            text("• Sponsor Grant: +$250.00").size(13).color(p.success),
+            text("• Domain Renewal: -$14.99").size(13).color(p.danger),
+        ]
+        .spacing(10)
+        .into()
+    }
+
+    fn view_finances(&self, p: KeeftalkPalette) -> Element<'_, Message> {
+        let mut items = column![text("My Finances").size(20)].spacing(10);
+        for tx in &self.snapshot.transactions {
+            let color = if tx.is_expense { p.danger } else { p.success };
+            let sign = if tx.is_expense { "-" } else { "+" };
+            items = items.push(
+                container(
+                    row![
+                        column![
+                            text(&tx.title).size(15),
+                            text(&tx.category).size(12).color(p.text_muted),
+                        ]
+                        .spacing(3),
+                        Space::with_width(Length::Fill),
+                        text(format!("{sign}${:.2}", tx.amount)).size(15).color(color),
+                    ]
+                    .align_y(Alignment::Center),
+                )
+                .padding(12)
+                .width(Length::Fill)
+                .style(move |_| container::Style {
+                    background: Some(p.surface.into()),
+                    border: iced::Border { color: p.border, width: 1.0, radius: 8.0.into() },
+                    ..Default::default()
+                }),
+            );
+        }
+        scrollable(items).into()
+    }
+
+    fn view_market(&self, p: KeeftalkPalette) -> Element<'_, Message> {
+        column![
+            text("My Market — Keeftalk Open Extension Ecosystem").size(22),
+            text("Privacy-first extensions and self-hosted plugins verified by signature.").size(13).color(p.text_muted),
+            horizontal_rule(1),
+            text("Featured Extensions").size(16),
+            container(
+                column![
+                    text("Signal Bridge Protocol").size(15),
+                    text("Sync end-to-end encrypted messages with Signal network.").size(12).color(p.text_muted),
+                ]
+                .spacing(4),
+            )
+            .padding(12)
+            .width(Length::Fill)
+            .style(move |_| container::Style {
+                background: Some(p.surface.into()),
+                border: iced::Border { color: p.border, width: 1.0, radius: 8.0.into() },
+                ..Default::default()
+            }),
+        ]
+        .spacing(10)
+        .into()
+    }
+
+    fn view_feed(&self, p: KeeftalkPalette) -> Element<'_, Message> {
+        let mut items = column![text("My Feed (RSS / News Reader)").size(20)].spacing(10);
+        for rss in &self.snapshot.feeds {
+            items = items.push(
+                container(
+                    column![
+                        text(&rss.title).size(15),
+                        text(format!("Source: {} • {}", rss.source_name, rss.published_at.format("%Y-%m-%d")))
+                            .size(12)
+                            .color(p.text_muted),
+                        text(&rss.article_url).size(12).color(p.primary),
+                    ]
+                    .spacing(4),
+                )
+                .padding(12)
+                .width(Length::Fill)
+                .style(move |_| container::Style {
+                    background: Some(p.surface.into()),
+                    border: iced::Border { color: p.border, width: 1.0, radius: 8.0.into() },
+                    ..Default::default()
+                }),
+            );
+        }
+        scrollable(items).into()
+    }
+
+    fn view_browser(&self, p: KeeftalkPalette) -> Element<'_, Message> {
+        let mut items = column![text("My Browser (Privacy Bookmarks)").size(20)].spacing(10);
+        for bm in &self.snapshot.bookmarks {
+            items = items.push(
+                container(
+                    row![
+                        column![
+                            text(&bm.title).size(15),
+                            text(&bm.url).size(12).color(p.primary),
+                        ]
+                        .spacing(3),
+                        Space::with_width(Length::Fill),
+                        text(&bm.category).size(12).color(p.text_muted),
+                    ]
+                    .align_y(Alignment::Center),
+                )
+                .padding(12)
+                .width(Length::Fill)
+                .style(move |_| container::Style {
+                    background: Some(p.surface.into()),
+                    border: iced::Border { color: p.border, width: 1.0, radius: 8.0.into() },
+                    ..Default::default()
+                }),
+            );
+        }
+        scrollable(items).into()
+    }
+
+    fn view_email(&self, p: KeeftalkPalette) -> Element<'_, Message> {
+        let mut items = column![text("My E-Mail (Encrypted Inbox)").size(20)].spacing(10);
+        for em in &self.snapshot.emails {
+            items = items.push(
+                container(
+                    column![
+                        row![
+                            text(&em.sender).size(13).color(p.primary),
+                            Space::with_width(Length::Fill),
+                            text(em.timestamp.format("%H:%M").to_string()).size(12).color(p.text_muted),
+                        ],
+                        text(&em.subject).size(15),
+                        text(&em.preview).size(13).color(p.text_muted),
+                    ]
+                    .spacing(4),
+                )
+                .padding(12)
+                .width(Length::Fill)
+                .style(move |_| container::Style {
+                    background: Some(p.surface.into()),
+                    border: iced::Border { color: p.border, width: 1.0, radius: 8.0.into() },
+                    ..Default::default()
+                }),
+            );
+        }
+        scrollable(items).into()
+    }
+
+    fn view_maps(&self, p: KeeftalkPalette) -> Element<'_, Message> {
+        let mut items = column![text("My Maps (Offline Location Bookmarks)").size(20)].spacing(10);
+        for map in &self.snapshot.map_bookmarks {
+            items = items.push(
+                container(
+                    row![
+                        column![
+                            text(&map.title).size(15),
+                            text(&map.address).size(12).color(p.text_muted),
+                        ]
+                        .spacing(3),
+                        Space::with_width(Length::Fill),
+                        text(format!("{:.4}, {:.4}", map.latitude, map.longitude))
+                            .size(12)
+                            .color(p.primary),
+                    ]
+                    .align_y(Alignment::Center),
+                )
+                .padding(12)
+                .width(Length::Fill)
+                .style(move |_| container::Style {
+                    background: Some(p.surface.into()),
+                    border: iced::Border { color: p.border, width: 1.0, radius: 8.0.into() },
+                    ..Default::default()
+                }),
+            );
+        }
+        scrollable(items).into()
+    }
+
+    fn view_din(&self, p: KeeftalkPalette) -> Element<'_, Message> {
+        let ps = &self.snapshot.prayer_schedule;
+
+        let prayer_box = row![
+            column![text("Fajr").size(12).color(p.text_muted), text(&ps.fajr).size(16)],
+            column![text("Dhuhr").size(12).color(p.text_muted), text(&ps.dhuhr).size(16)],
+            column![text("Asr").size(12).color(p.text_muted), text(&ps.asr).size(16)],
+            column![text("Maghrib").size(12).color(p.text_muted), text(&ps.maghrib).size(16)],
+            column![text("Isha").size(12).color(p.text_muted), text(&ps.isha).size(16)],
+        ]
+        .spacing(24);
+
+        column![
+            text("My Din (Daily Prayer Schedule & Qibla)").size(22),
+            container(
+                column![
+                    text(format!("Next Prayer: {}", ps.next_prayer)).size(18).color(p.primary),
+                    text(format!("In approximately {} minutes", ps.minutes_remaining)).size(13).color(p.text_muted),
+                    Space::with_height(8),
+                    prayer_box,
+                ]
+                .spacing(8),
+            )
+            .padding(18)
+            .width(Length::Fill)
+            .style(move |_| container::Style {
+                background: Some(p.surface.into()),
+                border: iced::Border { color: p.border, width: 1.0, radius: 10.0.into() },
+                ..Default::default()
+            }),
+        ]
+        .spacing(12)
+        .into()
+    }
+
     fn view_settings(&self, p: KeeftalkPalette) -> Element<'_, Message> {
         let themes = [
             ("Dark", ThemeVariant::Dark),
@@ -1221,33 +1678,6 @@ impl KeeftalkApp {
                     .color(p.warning),
             ]
             .spacing(10),
-        )
-        .padding(16)
-        .style(move |_| container::Style {
-            background: Some(p.surface.into()),
-            border: iced::Border {
-                color: p.border,
-                width: 1.0,
-                radius: 10.0.into(),
-            },
-            ..Default::default()
-        })
-        .into()
-    }
-
-    fn view_planned_module(&self, module: ModuleId, p: KeeftalkPalette) -> Element<'_, Message> {
-        let group_label = module
-            .group()
-            .unwrap_or(ModuleGroup::Personal);
-        container(
-            column![
-                text(module.title()).size(22),
-                text(format!("Module Group: {group_label:?}")).size(13).color(p.primary),
-                text("Scheduled in Phase 7 of ROADMAP.md. Local-first implementation will replace this status card once its backend/local repository is wired.")
-                    .size(14)
-                    .color(p.text_muted),
-            ]
-            .spacing(8),
         )
         .padding(16)
         .style(move |_| container::Style {

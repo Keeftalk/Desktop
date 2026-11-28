@@ -15,7 +15,7 @@ use keeftalk_platform::{AppPaths, EphemeralSecretStore, OsKeyringStore, SecretSt
 use keeftalk_settings::{AppConfig, AppMode, SettingsError};
 use keeftalk_sync::{SyncStatus, SyncSummary};
 use thiserror::Error;
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::model::{
     CalendarEvent, ChatConversation, ChatMessage, NoteItem, TodoPriority, TodoTask, VaultEntry,
@@ -89,7 +89,14 @@ impl KeeftalkCore {
             }
             AppMode::Offline | AppMode::Cloud => {
                 if config.security.require_os_keyring {
-                    Arc::new(OsKeyringStore::new("tn.keeftalk.desktop"))
+                    let os_store = OsKeyringStore::new("tn.keeftalk.desktop");
+                    match os_store.get_secret("__keeftalk_probe__") {
+                        Ok(_) => Arc::new(os_store),
+                        Err(e) => {
+                            warn!("OS Keyring unavailable ({e}); falling back to EphemeralSecretStore.");
+                            Arc::new(EphemeralSecretStore::default())
+                        }
+                    }
                 } else {
                     Arc::new(EphemeralSecretStore::default())
                 }

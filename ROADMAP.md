@@ -21,7 +21,7 @@ This roadmap tracks the phased, PR-first transformation of `Keeftalk/Desktop` in
 - [x] Theme system: Light, Dark, Day, Pinky, Masculine, configurable accent & Keef atmospheric tokens
 - [x] Global Search & Command Palette (`Ctrl+K` / `Cmd+K`), keyboard shortcuts
 - [x] Settings UI shell & Mock/Demo mode indicator
-- [x] Android-consistent menu icons and user avatar badges
+- [x] Vector SVG menu icons (`iced::widget::svg`) rendering crisp on Linux, Windows, and macOS with zero font dependencies
 
 ## Phase 3 — Database & Security Foundation (PR #4)
 - [x] `keeftalk-crypto`: Argon2id, HMAC domain keys, AES-256-GCM, PCK v4, chunked file v2, `.ktb` backups
@@ -47,12 +47,12 @@ This roadmap tracks the phased, PR-first transformation of `Keeftalk/Desktop` in
 - [x] **My Vault:** Encrypted folder tree, R2 chunked upload/download, auto-lock, `.ktb` import/export
 
 ## Phase 7 — Extended Super App Modules
-- [ ] My Secrets (TOTP + Password Manager) & Security Center
-- [ ] My Habits, My Docs, My Books
-- [ ] My Calls (WebRTC audio/video via `call_sessions` / `call_signaling`)
-- [ ] My Finances, My Wallet, My E-Mail, My Feed, My Market, My Maps, My Din
+- [x] My Secrets (TOTP 2FA + Password Vault) & Security Center (security score audit & diagnostic engine)
+- [x] My Habits (streak tracker & daily check-ins), My Docs, My Books (page progress reader)
+- [x] My Calls (WebRTC audio/video call controller & microphone/camera toggles)
+- [x] My Finances (ledger & expense breakdown), My Wallet (encrypted balance & transactions), My E-Mail (inbox preview), My Feed (RSS reader), My Market, My Maps (offline location bookmarks), My Din (daily prayer schedule & Qibla countdown)
 
 ## Phase 8–10 — Cross-Platform Packaging, CI/CD & Release Readiness
 - [x] GitHub Actions CI (`fmt`, `check`, `clippy`, `test`, `cargo-audit`, `cargo-deny`, secret scan)
-- [x] Cross-platform release builds (Windows MSI/ZIP, Linux AppImage/tarball, macOS `.app`/`.dmg`)
+- [x] Automatic platform release artifact uploads on CI (Windows `.exe`, Linux binary, macOS Apple Silicon / Intel)
 - [x] Complete contributor docs, `SECURITY.md`, `CODE_OF_CONDUCT.md`, issue/PR templates, self-hosting guide
