@@ -71,7 +71,7 @@ jobs:
       - name: Build Release Executable
         run: cargo build --release -p keeftalk-app --target ${{ matrix.target }}
       - name: Upload Desktop Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact_name }}
           path: ${{ matrix.binary_path }}
