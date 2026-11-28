@@ -35,7 +35,7 @@ serde_json = "1.0"
 toml = "0.8"
 
 # Database
-rusqlite = { version = "0.32", features = ["bundled-sqlcipher", "backup"] }
+rusqlite = { version = "0.43", features = ["bundled-sqlcipher", "backup"] }
 
 # Networking
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
