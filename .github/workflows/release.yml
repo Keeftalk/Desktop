@@ -48,6 +48,6 @@ jobs:
           Copy-Item target/${{ matrix.target }}/release/keeftalk-desktop.exe dist/
           Compress-Archive -Path dist/keeftalk-desktop.exe -DestinationPath ${{ matrix.asset_name }}
       - name: Upload release asset
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: ${{ matrix.asset_name }}
